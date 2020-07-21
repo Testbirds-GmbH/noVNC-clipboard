@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>TeChClipboard</title>
+
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+    <script src="dist/tech-clipboard.bundle.js"></script>
+    <script>
+        window.onload = function () {
+            var log = document.getElementById('clipboard-log');
+            var options = {
+                enabled: true,
+                // The target hidden input
+                target: document.getElementById('hidden-input'),
+                // This listener is called when the clipboard recognizes a copy event
+                // The handler is used to respond with text that should be copied to the clipboard
+                onCopy: () => {
+                    var rnd = Math.floor(Math.random() * 1000).toString();
+                    log.value = 'copy ' + rnd + '\n' + log.value;
+                    return rnd;
+                },
+                // Paste event with the pasted content
+                onPaste: (content) => {
+                    log.value = 'paste ' + content + '\n' + log.value;
+                }
+            };
+            var clipboard = new TeChClipboard(options);
+
+            document.getElementById('enable-clipboard').addEventListener('click', function () {
+                clipboard.enable();
+            });
+            document.getElementById('disable-clipboard').addEventListener('click', function () {
+                clipboard.disable();
+            });
+        };
+    </script>
+</head>
+<body>
+
+<input id="hidden-input" style="width: 0; height: 0; visibility: hidden" type="text" value="">
+
+<input id="enable-clipboard" type="button" value="Enable">
+<input id="disable-clipboard" type="button" value="Disable">
+
+<br>
+<br>
+
+<textarea id="clipboard-log" title="Clipboard Log" cols="40" rows="40"></textarea>
+
+</body>
+</html>

@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>TeChVNC</title>
+
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <script
+            src="https://code.jquery.com/jquery-3.3.1.min.js"
+            integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8="
+            crossorigin="anonymous"></script>
+
+    <script src="dist/tech-vnc.bundle.js"></script>
+    <script>
+        function log(key) {
+            var args = Array.prototype.slice.call(arguments).join(' ');
+            var logElem = document.getElementById('clipboard-log');
+            console.log.apply(arguments);
+            logElem.value = args + '\n' + logElem.value;
+        }
+
+        function clipboardUrl(set) {
+            return 'https://' + read('vmhost') + '.testchameleon.com/clipboard/' + (set ? 'set' : 'get') + '/' + read('uuid');
+        }
+
+        function onPaste(content) {
+            $.ajax({
+                crossDomain: true,
+                type: 'POST',
+                url: clipboardUrl(true),
+                data: content,
+                error: function (data) {
+                    console.log('error', data);
+                }
+            });
+        }
+
+        function onCopy() {
+            // This has to be sync, otherwise the browser does not accept the response
+            var content;
+            $.ajax({
+                crossDomain: true,
+                type: 'GET',
+                url: clipboardUrl(false),
+                success: function (result) {
+                    content = result;
+                },
+                async: false
+            });
+            return content;
+        }
+
+        function connect(vmhost, uuid, password, clipboard) {
+            // noVNC will append the canvas as child element of this element
+            var vncTarget = document.getElementById('noVNC_wrapper');
+            // The websocket url
+            var url = 'wss://' + vmhost + '.testchameleon.com/webvnc/' + uuid;
+            var mousePosition = document.getElementById('mouseposition');
+            var options = {
+                // The rfb options. These will be forwarded to noVNC
+                rfb: {
+                    credentials: {password: password}
+                },
+                onResize: (w, h) => {
+                    log('resize', w, h);
+                },
+                onMouseMove: (event) => {
+                    mousePosition.value = event.pageX + 'x' + event.pageY;
+                },
+                logLevel: 'debug',
+                // The clipboard options. They are used to customize our clipboard integration
+                clipboard: {
+                    enabled: clipboard,
+                    // The target hidden input
+                    target: document.getElementById('hidden-input'),
+                    // This listener is called when the clipboard recognizes a copy event
+                    // The handler is used to respond with text that should be copied to the clipboard
+                    onCopy: onCopy,
+                    // Paste event with the pasted content
+                    onPaste: onPaste
+                }
+            };
+            // Main entry point
+            window.techVNC = new TeChVNC(vncTarget, url, options);
+        }
+
+        function read(id) {
+            var value = document.getElementById(id).value;
+            localStorage.setItem(id, value);
+            return value;
+        }
+
+        function write(id) {
+            document.getElementById(id).value = localStorage.getItem(id);
+        }
+
+        window.onload = function () {
+            ['vmhost', 'uuid', 'password'].forEach(write);
+            var clipboardEnabled = document.getElementById('clipboard');
+            document.getElementById('connect').addEventListener('click', function () {
+                connect(read('vmhost'), read('uuid'), read('password'), clipboardEnabled.checked);
+            });
+            clipboardEnabled.addEventListener('click', function () {
+                if (window.techVNC) {
+                    if (clipboardEnabled.checked) {
+                        log('clipboard', 'enable');
+                        window.techVNC.clipboard.enable();
+                    } else {
+                        log('clipboard', 'disable');
+                        window.techVNC.clipboard.disable();
+                    }
+                }
+            });
+        };
+    </script>
+</head>
+<body>
+
+<input type="text" placeholder="vmhost-XX" id="vmhost">
+<input type="text" placeholder="uuid" id="uuid">
+<input type="text" placeholder="password" id="password">
+<input type="button" value="Connect" id="connect">
+
+<label>
+    <input type="checkbox" value="enabled" id="clipboard" title="Enable Clipboard">
+    Enable Clipboard
+</label>
+
+<input type="text" placeholder="Mouse Position" id="mouseposition">
+
+<div id="noVNC_wrapper">
+    <input id="hidden-input" style="width: 0; height: 0; visibility: hidden" type="text" value="">
+</div>
+
+<textarea id="clipboard-log" title="Clipboard Log" cols="40" rows="40"></textarea>
+
+</body>
+</html>
